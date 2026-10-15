@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ofertas VIA Caxias</title>
+<meta name="description" content="Ofertas do dia do VIA Clube na loja VIA Caxias, com ranking, busca e validade.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+  :root {
+    --paper: #F2F0ED; --surface: #FFFFFF; --surface-2: #FAF8F6;
+    --ink: #16120F; --ink-2: #6B625B; --ink-3: #978D85;
+    --rule: #DFDAD4; --rule-hard: #16120F;
+    --accent: #C8102E; --accent-soft: #F9E6E9;
+    --save: #1F6B4A; --save-soft: #E3EFE9;
+    --urgent: #A83208; --urgent-soft: #FAE7DD;
+    --new: #2B4FA8; --new-soft: #E6ECF8;
+    --shadow: 0 1px 0 rgba(22,18,15,.04), 0 10px 26px -18px rgba(22,18,15,.35);
+    --f-display: "Anton", "Arial Narrow", Impact, sans-serif;
+    --f-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+    --f-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #121010; --surface: #1C1918; --surface-2: #232020;
+      --ink: #F2EDE9; --ink-2: #A89D95; --ink-3: #7C726B;
+      --rule: #332D2A; --rule-hard: #4A423D;
+      --accent: #FF6E75; --accent-soft: #3A1A1E;
+      --save: #6AC79A; --save-soft: #142A20;
+      --urgent: #FF9061; --urgent-soft: #33180E;
+      --new: #8FB0FF; --new-soft: #18223A;
+      --shadow: 0 1px 0 rgba(0,0,0,.3), 0 10px 26px -18px rgba(0,0,0,.8);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #121010; --surface: #1C1918; --surface-2: #232020;
+    --ink: #F2EDE9; --ink-2: #A89D95; --ink-3: #7C726B;
+    --rule: #332D2A; --rule-hard: #4A423D;
+    --accent: #FF6E75; --accent-soft: #3A1A1E;
+    --save: #6AC79A; --save-soft: #142A20;
+    --urgent: #FF9061; --urgent-soft: #33180E;
+    --new: #8FB0FF; --new-soft: #18223A;
+    --shadow: 0 1px 0 rgba(0,0,0,.3), 0 10px 26px -18px rgba(0,0,0,.8);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--f-body); font-size: 16px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 1060px; margin: 0 auto; padding: 28px 16px 72px; }
+
+  .masthead { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; padding-bottom: 18px; border-bottom: 3px solid var(--rule-hard); }
+  .eyebrow { font-family: var(--f-mono); font-size: 11px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--accent); margin: 0 0 6px; }
+  h1 { font-family: var(--f-display); font-weight: 400; font-size: clamp(38px, 8vw, 64px); line-height: .92; text-transform: uppercase; margin: 0; letter-spacing: .01em; }
+  .stamp { font-family: var(--f-mono); font-size: 12px; color: var(--ink-2); text-align: right; }
+  .stamp b { display: block; font-size: 14px; color: var(--ink); font-weight: 600; }
+
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); border-bottom: 1px solid var(--rule); }
+  .stat { padding: 14px 12px 14px 0; }
+  .stat + .stat { padding-left: 14px; border-left: 1px solid var(--rule); }
+  .stat .n { font-family: var(--f-display); font-size: 30px; line-height: 1; }
+  .stat .l { font-family: var(--f-mono); font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--ink-2); margin-top: 4px; }
+  .stat.hot .n { color: var(--urgent); }
+  .stat.fresh .n { color: var(--new); }
+  @media (max-width: 560px) {
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .stat:nth-child(3) { padding-left: 0; border-left: 0; }
+    .stat:nth-child(n+3) { border-top: 1px solid var(--rule); }
+  }
+
+  .controls { position: sticky; top: 0; z-index: 5; background: var(--paper); padding: 14px 0 12px; border-bottom: 1px solid var(--rule); display: grid; gap: 10px; }
+  .search { width: 100%; font: inherit; font-size: 16px; color: var(--ink); background: var(--surface); border: 1.5px solid var(--rule); border-radius: 10px; padding: 11px 14px; outline: none; }
+  .search:focus { border-color: var(--ink); }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .chip { font: 500 13px var(--f-body); color: var(--ink); background: var(--surface); border: 1.5px solid var(--rule); border-radius: 999px; padding: 6px 13px; cursor: pointer; }
+  .chip[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .chip .c { font-family: var(--f-mono); font-size: 11px; opacity: .7; margin-left: 4px; }
+  select { font: 500 13px var(--f-body); color: var(--ink); background: var(--surface); border: 1.5px solid var(--rule); border-radius: 999px; padding: 6px 10px; margin-left: auto; }
+  .count { font-family: var(--f-mono); font-size: 12px; color: var(--ink-2); }
+
+  .list { list-style: none; margin: 18px 0 0; padding: 0; display: grid; gap: 10px; }
+  .item { display: grid; grid-template-columns: 44px 72px 1fr auto; gap: 14px; align-items: center; background: var(--surface); border: 1px solid var(--rule); border-radius: 12px; padding: 12px 14px; box-shadow: var(--shadow); }
+  .item.esg { opacity: .55; }
+  .rank { font-family: var(--f-display); font-size: 26px; color: var(--ink-3); text-align: center; }
+  .item:nth-child(-n+3) .rank { color: var(--accent); }
+  .thumb { width: 72px; height: 72px; border-radius: 8px; background: #fff; object-fit: contain; border: 1px solid var(--rule); }
+  .name { font-weight: 600; line-height: 1.3; margin: 0 0 6px; }
+  .meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 12px; color: var(--ink-2); }
+  .tag { font: 600 10.5px var(--f-mono); text-transform: uppercase; letter-spacing: .08em; padding: 3px 7px; border-radius: 4px; }
+  .tag.hoje { background: var(--urgent-soft); color: var(--urgent); }
+  .tag.nova { background: var(--new-soft); color: var(--new); }
+  .tag.ren { background: var(--save-soft); color: var(--save); }
+  .tag.esg { background: var(--surface-2); color: var(--ink-2); border: 1px solid var(--rule); }
+  .tag.dest { background: var(--accent-soft); color: var(--accent); }
+  .price { text-align: right; white-space: nowrap; }
+  .pct { display: inline-block; font-family: var(--f-display); font-size: 24px; line-height: 1; color: var(--save); }
+  .por { font: 700 18px var(--f-body); }
+  .de { font-size: 12px; color: var(--ink-3); text-decoration: line-through; }
+  .eco { font: 500 11px var(--f-mono); color: var(--save); }
+  @media (max-width: 620px) {
+    .item { grid-template-columns: 30px 56px 1fr; gap: 10px; }
+    .rank { font-size: 20px; }
+    .thumb { width: 56px; height: 56px; }
+    .price { grid-column: 2 / -1; text-align: left; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+    select { margin-left: 0; }
+  }
+  .empty { text-align: center; color: var(--ink-2); padding: 48px 0; }
+  footer { margin-top: 36px; font-size: 12px; color: var(--ink-3); font-family: var(--f-mono); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="masthead">
+    <div>
+      <p class="eyebrow">VIA Clube · Loja VIA Caxias</p>
+      <h1>Ofertas do dia</h1>
+    </div>
+    <div class="stamp" id="stamp"></div>
+  </header>
+
+  <section class="stats" id="stats"></section>
+
+  <div class="controls">
+    <input class="search" id="q" type="search" placeholder="Buscar produto ou categoria…" aria-label="Buscar ofertas" autocomplete="off">
+    <div class="row" id="filtros">
+      <button class="chip" data-f="todas" aria-pressed="true">Todas</button>
+      <button class="chip" data-f="hoje" aria-pressed="false">Acaba hoje</button>
+      <button class="chip" data-f="nova" aria-pressed="false">Novas</button>
+      <select id="ord" aria-label="Ordenar">
+        <option value="pct">Maior desconto %</option>
+        <option value="eco">Maior economia R$</option>
+        <option value="por">Menor preço</option>
+        <option value="fim">Acaba antes</option>
+      </select>
+    </div>
+    <div class="count" id="count"></div>
+  </div>
+
+  <ol class="list" id="list"></ol>
+  <footer id="foot"></footer>
+</div>
+
+<script>
+const D = /*__DATA__*/null;
+const $ = id => document.getElementById(id);
+
+if (!D) {
+  $("list").innerHTML = '<li class="empty">Sem dados. Rode coletar.py para gerar o site.</li>';
+} else {
+  const brl = v => v == null ? "" : Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  // aceita "2026-10-15", "2026-10-15T23:59:59" ou "15/10/2026"
+  const ymd = s => {
+    if (!s) return "";
+    const br = /^(\d{2})\/(\d{2})\/(\d{4})/.exec(s);
+    return br ? `${br[3]}-${br[2]}-${br[1]}` : String(s).slice(0, 10);
+  };
+  const dm = s => s ? `${s.slice(8, 10)}/${s.slice(5, 7)}` : "";
+  const norm = s => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+
+  const ofertas = D.ofertas.map(o => {
+    const de = Number(o.de) || 0, por = Number(o.por) || 0, fim = ymd(o.fim);
+    return { ...o, de, por, fim, eco: de > por ? de - por : 0, hoje: fim === D.dia,
+             busca: norm(`${o.nome} ${(o.cats || []).join(" ")}`) };
+  });
+
+  const nHoje = ofertas.filter(o => o.hoje).length;
+  const nNova = ofertas.filter(o => o.st === "nova").length;
+  const best = Math.max(0, ...ofertas.map(o => o.pct || 0));
+  $("stamp").innerHTML = `<b>${dm(D.dia)}/${D.dia.slice(0, 4)}</b>atualizado ${esc(D.hora)}`;
+  $("stats").innerHTML = [
+    ["", ofertas.length, "ofertas"],
+    ["hot", nHoje, "acabam hoje"],
+    ["fresh", D.temOntem ? nNova : "—", "novas vs ontem"],
+    ["", `${best.toLocaleString("pt-BR")}%`, "maior desconto"],
+  ].map(([c, n, l]) => `<div class="stat ${c}"><div class="n">${n}</div><div class="l">${l}</div></div>`).join("");
+  document.querySelector('[data-f="hoje"]').insertAdjacentHTML("beforeend", `<span class="c">${nHoje}</span>`);
+  document.querySelector('[data-f="nova"]').insertAdjacentHTML("beforeend", `<span class="c">${nNova}</span>`);
+  if (!D.temOntem) document.querySelector('[data-f="nova"]').hidden = true;
+
+  const ordens = {
+    pct: (a, b) => b.pct - a.pct || b.eco - a.eco,
+    eco: (a, b) => b.eco - a.eco || b.pct - a.pct,
+    por: (a, b) => a.por - b.por,
+    fim: (a, b) => (a.fim || "9").localeCompare(b.fim || "9") || b.pct - a.pct,
+  };
+  let filtro = "todas";
+
+  function card(o, i) {
+    const tags = [
+      o.hoje && '<span class="tag hoje">acaba hoje</span>',
+      o.st === "nova" && D.temOntem && '<span class="tag nova">nova</span>',
+      o.st === "renovada" && '<span class="tag ren">renovada</span>',
+      o.dest && '<span class="tag dest">destaque</span>',
+      o.esg && '<span class="tag esg">esgotado</span>',
+    ].filter(Boolean).join("");
+    const val = o.fim && !o.hoje ? `até ${dm(o.fim)}` : "";
+    const lim = o.lim ? `limite ${esc(o.lim)} un.` : "";
+    const cats = (o.cats || []).slice(0, 2).map(esc).join(" · ");
+    return `<li class="item${o.esg ? " esg" : ""}">
+      <div class="rank">${i + 1}</div>
+      ${o.img ? `<img class="thumb" src="${esc(o.img)}" alt="" loading="lazy">` : '<div class="thumb"></div>'}
+      <div><p class="name">${esc(o.nome)}</p>
+        <div class="meta">${tags}${[val, lim, cats].filter(Boolean).map(t => `<span>${t}</span>`).join("·")}</div></div>
+      <div class="price">
+        ${o.pct ? `<div class="pct">-${o.pct.toLocaleString("pt-BR")}%</div>` : ""}
+        <div class="por">${brl(o.por)}</div>
+        ${o.eco ? `<div class="de">${brl(o.de)}</div><div class="eco">economia ${brl(o.eco)}</div>` : ""}
+      </div></li>`;
+  }
+
+  function render() {
+    const q = norm($("q").value.trim());
+    const lista = ofertas
+      .filter(o => filtro === "todas" || (filtro === "hoje" ? o.hoje : o.st === "nova"))
+      .filter(o => !q || q.split(/\s+/).every(t => o.busca.includes(t)))
+      .sort(ordens[$("ord").value]);
+    $("count").textContent = `${lista.length} de ${ofertas.length} ofertas`;
+    $("list").innerHTML = lista.length ? lista.map(card).join("") : '<li class="empty">Nenhuma oferta encontrada.</li>';
+  }
+
+  $("filtros").addEventListener("click", e => {
+    const b = e.target.closest(".chip");
+    if (!b) return;
+    filtro = b.dataset.f;
+    document.querySelectorAll(".chip").forEach(c => c.setAttribute("aria-pressed", c === b));
+    render();
+  });
+  $("q").addEventListener("input", render);
+  $("ord").addEventListener("change", render);
+  $("foot").textContent = `Dados do app VIA Clube, coletados ${dm(D.dia)} às ${D.hora}. Preços e estoques podem mudar na loja.`;
+  render();
+}
+</script>
+</body>
+</html>
