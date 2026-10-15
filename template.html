@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Ofertas VIA Caxias</title>
-<meta name="description" content="Ofertas do dia do VIA Clube na loja VIA Caxias, com ranking, busca e validade.">
+<title>Ofertas Caxias</title>
+<meta name="description" content="Ofertas do dia do VIA Caxias e do Supermercados Andreazza, com ranking, busca e validade.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -91,6 +91,8 @@
   .tag.ren { background: var(--save-soft); color: var(--save); }
   .tag.esg { background: var(--surface-2); color: var(--ink-2); border: 1px solid var(--rule); }
   .tag.dest { background: var(--accent-soft); color: var(--accent); }
+  .tag.m-via { background: var(--ink); color: var(--paper); }
+  .tag.m-andreazza { background: var(--save); color: var(--paper); }
   .price { text-align: right; white-space: nowrap; }
   .pct { display: inline-block; font-family: var(--f-display); font-size: 24px; line-height: 1; color: var(--save); }
   .por { font: 700 18px var(--f-body); }
@@ -111,7 +113,7 @@
 <div class="wrap">
   <header class="masthead">
     <div>
-      <p class="eyebrow">VIA Clube · Loja VIA Caxias</p>
+      <p class="eyebrow">VIA Caxias · Andreazza · Caxias do Sul</p>
       <h1>Ofertas do dia</h1>
     </div>
     <div class="stamp" id="stamp"></div>
@@ -125,6 +127,7 @@
       <button class="chip" data-f="todas" aria-pressed="true">Todas</button>
       <button class="chip" data-f="hoje" aria-pressed="false">Acaba hoje</button>
       <button class="chip" data-f="nova" aria-pressed="false">Novas</button>
+      <select id="merc" aria-label="Mercado"><option value="">Todos os mercados</option></select>
       <select id="cat" aria-label="Categoria"><option value="">Todos os departamentos</option></select>
       <select id="ord" aria-label="Ordenar">
         <option value="pct">Maior desconto %</option>
@@ -160,7 +163,7 @@ if (!D) {
 
   const ofertas = D.ofertas.map(o => {
     const de = Number(o.de) || 0, por = Number(o.por) || 0, fim = ymd(o.fim);
-    return { ...o, de, por, fim, eco: de > por ? de - por : 0, hoje: fim === D.dia,
+    return { ...o, m: o.m || "via", de, por, fim, eco: de > por ? de - por : 0, hoje: fim === D.dia,
              busca: norm(`${o.nome} ${(o.cats || []).join(" ")}`) };
   });
 
@@ -182,7 +185,7 @@ if (!D) {
   const freq = {};
   ofertas.forEach(o => (o.cats || []).forEach(c => freq[c] = (freq[c] || 0) + 1));
   const FLC = "Frios, Laticínios e Congelados";
-  const NOMES = { "Flc": FLC, "Congelados": FLC, "Acougue": "Açougue", "Flores": "Flores e Plantas" };
+  const NOMES = { "Flc": FLC, "Congelados": FLC, "Laticínios": FLC, "Fiambreria": FLC, "Acougue": "Açougue", "Flores": "Flores e Plantas" };
   const nDep = {};
   ofertas.forEach(o => {
     const top = (o.cats || []).reduce((a, c) => !a || freq[c] > freq[a] ? c : a, "");
@@ -191,6 +194,12 @@ if (!D) {
   });
   $("cat").insertAdjacentHTML("beforeend", Object.keys(nDep).sort((a, b) => a.localeCompare(b, "pt-BR"))
     .map(c => `<option value="${esc(c)}">${esc(c)} (${nDep[c]})</option>`).join(""));
+
+  const MERCADOS = { via: "VIA Atacadista", andreazza: "Andreazza" };
+  const nMerc = {};
+  ofertas.forEach(o => nMerc[o.m] = (nMerc[o.m] || 0) + 1);
+  $("merc").insertAdjacentHTML("beforeend", Object.keys(nMerc)
+    .map(m => `<option value="${m}">${MERCADOS[m] || m} (${nMerc[m]})</option>`).join(""));
 
   const ordens = {
     pct: (a, b) => b.pct - a.pct || b.eco - a.eco,
@@ -202,6 +211,7 @@ if (!D) {
 
   function card(o, i) {
     const tags = [
+      `<span class="tag m-${o.m}">${MERCADOS[o.m] || o.m}</span>`,
       o.hoje && `<span class="tag hoje">acaba hoje · ${dm(o.fim)}</span>`,
       o.st === "nova" && D.temOntem && '<span class="tag nova">nova</span>',
       o.st === "renovada" && '<span class="tag ren">renovada</span>',
@@ -209,7 +219,7 @@ if (!D) {
       o.esg && '<span class="tag esg">esgotado</span>',
     ].filter(Boolean).join("");
     const val = o.fim && !o.hoje ? `até ${dm(o.fim)}` : "";
-    const lim = o.lim ? `limite ${esc(o.lim)} un.` : "";
+    const lim = o.lim ? `limite ${esc(o.lim)} un.` : esc(o.obs);
     const cats = (o.cats || []).slice(0, 2).map(esc).join(" · ");
     return `<li class="item${o.esg ? " esg" : ""}">
       <div class="rank">${i + 1}</div>
@@ -224,9 +234,10 @@ if (!D) {
   }
 
   function render() {
-    const q = norm($("q").value.trim()), cat = $("cat").value;
+    const q = norm($("q").value.trim()), cat = $("cat").value, merc = $("merc").value;
     const lista = ofertas
       .filter(o => filtro === "todas" || (filtro === "hoje" ? o.hoje : o.st === "nova"))
+      .filter(o => !merc || o.m === merc)
       .filter(o => !cat || o.dep === cat)
       .filter(o => !q || q.split(/\s+/).every(t => o.busca.includes(t)))
       .sort(ordens[$("ord").value]);
@@ -244,7 +255,8 @@ if (!D) {
   $("q").addEventListener("input", render);
   $("ord").addEventListener("change", render);
   $("cat").addEventListener("change", render);
-  $("foot").textContent = `Dados do app VIA Clube, coletados ${dm(D.dia)} às ${D.hora}. Preços e estoques podem mudar na loja.`;
+  $("merc").addEventListener("change", render);
+  $("foot").textContent = `Dados do app VIA Clube e da revista de ofertas do Andreazza (sem preço "de", exceto nas promoções Leve N), coletados ${dm(D.dia)} às ${D.hora}. Preços e estoques podem mudar na loja.`;
   render();
 }
 </script>

@@ -25,6 +25,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - run: pip install pymupdf==1.28.2
       - name: Buscar ofertas
         env:
           VIA_LOGIN: ${{ secrets.VIA_LOGIN }}

@@ -1,4 +1,4 @@
-"""Rotina diária: busca ofertas do VIA Clube, compara com ontem e gera site/index.html.
+"""Rotina diária: busca ofertas do VIA Clube e do Andreazza, compara com ontem e gera site/index.html.
 
 Credenciais via variáveis de ambiente (segredos do GitHub):
   VIA_LOGIN (CPF), VIA_SENHA, VIA_XAPIKEY, VIA_LOJA (padrão 8 = VIA CAXIAS)
@@ -9,6 +9,8 @@ import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+
+import andreazza
 
 ROOT = Path(__file__).parent
 DATA = ROOT / "data"
@@ -59,10 +61,23 @@ def enxugar(o):
 
 def marcar(hoje, ontem):
     antes = {o["k"]: o for o in ontem}
+    mercados = {o.get("m", "via") for o in ontem}  # mercado novo no site não vira "tudo novo"
     for o in hoje:
         a = antes.get(o["k"])
-        o["st"] = "nova" if a is None else ("renovada" if a["fim"] != o["fim"] else "continua")
+        if a is None:
+            o["st"] = "nova" if o["m"] in mercados else "continua"
+        else:
+            o["st"] = "renovada" if a["fim"] != o["fim"] else "continua"
     return hoje
+
+
+def fonte(nome, f):
+    """Uma fonte com erro não derruba a outra; o aviso aparece no resumo do GitHub Actions."""
+    try:
+        return f()
+    except Exception as e:
+        print(f"::warning::{nome} falhou: {e!r}")
+        return None
 
 
 def main():
@@ -71,8 +86,11 @@ def main():
     DATA.mkdir(exist_ok=True)
     SITE.mkdir(exist_ok=True)
 
-    ofertas = [enxugar(o) for o in buscar()]
-    ofertas = [o for o in ofertas if o["por"] is not None]
+    via = fonte("VIA", lambda: [dict(enxugar(o), m="via") for o in buscar()])
+    andr = fonte("Andreazza", lambda: andreazza.coletar(dia))
+    if via is None and andr is None:
+        raise SystemExit("nenhuma fonte de ofertas funcionou")
+    ofertas = [o for o in (via or []) + (andr or []) if o["por"] is not None]
     anteriores = sorted(p for p in DATA.glob("*.json") if p.stem < dia)
     ontem = json.loads(anteriores[-1].read_text(encoding="utf-8")) if anteriores else []
     marcar(ofertas, ontem)
@@ -86,7 +104,7 @@ def main():
     if tpl.exists() and "/*__DATA__*/null" in (t := tpl.read_text(encoding="utf-8")):
         blob = json.dumps(payload, ensure_ascii=False).replace("</", "<\\/")
         (SITE / "index.html").write_text(t.replace("/*__DATA__*/null", blob), encoding="utf-8")
-    print(f"{dia}: {len(ofertas)} ofertas, {sum(o['st'] == 'nova' for o in ofertas)} novas")
+    print(f"{dia}: {len(via or [])} VIA + {len(andr or [])} Andreazza, {sum(o['st'] == 'nova' for o in ofertas)} novas")
 
 
 if __name__ == "__main__":
