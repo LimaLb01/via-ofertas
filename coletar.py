@@ -2,6 +2,7 @@
 
 Credenciais via variáveis de ambiente (segredos do GitHub):
   VIA_LOGIN (CPF), VIA_SENHA, VIA_XAPIKEY, VIA_LOJA (padrão 8 = VIA CAXIAS)
+  ANDREAZZA_LOGIN (CPF), ANDREAZZA_SENHA (sem eles, Andreazza usa só a revista PDF)
 """
 import json
 import os

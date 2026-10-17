@@ -32,6 +32,8 @@ jobs:
           VIA_SENHA: ${{ secrets.VIA_SENHA }}
           VIA_XAPIKEY: ${{ secrets.VIA_XAPIKEY }}
           VIA_LOJA: "8"
+          ANDREAZZA_LOGIN: ${{ secrets.ANDREAZZA_LOGIN }}
+          ANDREAZZA_SENHA: ${{ secrets.ANDREAZZA_SENHA }}
         run: python coletar.py
       - name: Salvar histórico
         run: |

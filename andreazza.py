@@ -1,17 +1,28 @@
-"""Ofertas do Supermercados Andreazza a partir da revista em PDF publicada em superandreazza.com.br/ofertas/.
+"""Ofertas do Supermercados Andreazza.
+
+Fonte principal: API do app Meu Andreazza (login com ANDREAZZA_LOGIN = CPF e ANDREAZZA_SENHA).
+Reserva: revista em PDF publicada em superandreazza.com.br/ofertas/.
 
 Layout da revista (Montserrat): nome em Medium ~9pt, detalhe em Regular ~7pt, preço em ExtraBold 22pt
 logo abaixo. Em "LEVE N PAGUE" vem o preço normal em 14pt acima do preço promocional.
 """
 import hashlib
+import html
+import json
+import os
 import re
 import sys
+import urllib.parse
 import urllib.request
 from datetime import date
 
 import pymupdf
 
 PAGINA = "https://superandreazza.com.br/ofertas/"
+API = "https://www.meuandreazza.com.br/api/"
+# headers fixos do app (Ionic, v4.0.16); se a API passar a recusar, recapturar com o emulador
+APP_HEADERS = {"api-token": "EZAZZ1881", "api-version": "1", "app-version": "4.0.16", "min-api-level": "21",
+               "Accept": "application/json", "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"}
 PRECO = re.compile(r"^(\d{1,4}),(\d{2})")
 DARK = 0x231F20
 
@@ -91,7 +102,75 @@ def extrair(pdf_bytes):
     return out
 
 
+def _api(endpoint, sessao=None, form=None):
+    h = dict(APP_HEADERS, **({"session-id": sessao} if sessao else {}))
+    data = urllib.parse.urlencode(form).encode() if form else None
+    with urllib.request.urlopen(urllib.request.Request(API + endpoint, data=data, headers=h), timeout=60) as r:
+        j = json.loads(r.read().decode("utf-8"))
+    if not j.get("status"):
+        raise RuntimeError(f"API {endpoint}: {j.get('data')}")
+    return j["data"]
+
+
+def _reais(t):
+    m = re.search(r"(\d{1,3}(?:\.\d{3})*|\d+),(\d{2})", t or "")
+    return float(m.group(1).replace(".", "") + "." + m.group(2)) if m else None
+
+
+def _texto(h):
+    return re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", " ", h or ""))).strip()
+
+
+def _iso(dmy):
+    d, m, a = dmy.split("/")
+    return f"{a}-{m}-{d}"
+
+
+def oferta_app(o, cats):
+    """Item de GET promos no formato do coletar.py."""
+    sub = o.get("subtitle") or ""
+    por = _reais(o.get("price"))
+    de = _reais(sub) if "<s>" in sub else None
+    unidade = "un." if o.get("max_unit") == "unidades" else o.get("max_unit") or ""
+    obs = [
+        f"{_texto(sub).capitalize()} {o.get('price')}" if sub and "<s>" not in sub else "",  # "Leve 2 pague cada R$ 12,99"
+        _texto(o.get("observation")),  # "Exceto: Zero Lactose"
+        f"limite {o['max']} {unidade}" if o.get("max") else "",
+        "ative no app" if o.get("must_activate") == "1" else "",
+    ]
+    cat = cats.get(o.get("id_category"), "")
+    return {
+        "id": "a" + o["id"], "k": "a" + (o.get("code") or o["id"]), "nome": _texto(o.get("title")),
+        "de": de, "por": por,
+        "pct": round((1 - por / de) * 100, 1) if de and por else 0,
+        "ini": _iso(o["date_start_formatted"]), "fim": _iso(o["date_end_formatted"]),
+        "lim": None, "cats": [cat.title()] if cat else [], "img": o.get("image") or "",
+        "dest": False, "esg": False, "obs": " · ".join(p for p in obs if p), "m": "andreazza",
+    }
+
+
+def coletar_app(login, senha):
+    sessao = _api("client/auth", form={"document": login, "password": senha, "id_company": 1})["session_id"]
+    cats = {c["id_category"]: c["title"] for c in _api("promos/categories", sessao)}
+    # import=1 traz tudo numa página (o app só pede a 1); by-profile=0 = todas, não só as do perfil
+    itens = _api("promos?page=1&by-profile=0&import=1", sessao)["items"]
+    if not itens:
+        raise RuntimeError("API devolveu 0 ofertas")
+    return [oferta_app(o, cats) for o in itens]
+
+
 def coletar(hoje=None):
+    """App se houver credenciais; se falhar, revista PDF."""
+    login, senha = os.environ.get("ANDREAZZA_LOGIN"), os.environ.get("ANDREAZZA_SENHA")
+    if login and senha:
+        try:
+            return coletar_app(login, senha)
+        except Exception as e:
+            print(f"::warning::Andreazza app falhou, usando revista PDF: {e!r}")
+    return coletar_pdf(hoje)
+
+
+def coletar_pdf(hoje=None):
     """Ofertas no formato do coletar.py. Lista vazia se a revista estiver vencida."""
     hoje = hoje or date.today().isoformat()
     url, ini, fim = revista()
