@@ -378,7 +378,7 @@ if (!D) {
     $("merc").disabled = $("ord").disabled = filtro === "comparar";
     if (filtro === "comparar") {
       const gs = comparar(base);
-      $("count").textContent = `${gs.length} produtos nos dois mercados`;
+      $("count").textContent = `${gs.length} ${gs.length === 1 ? "produto" : "produtos"} nos dois mercados`;
       $("list").innerHTML = gs.length ? gs.map(cardGrupo).join("") : '<li class="empty">Nenhum produto nos dois mercados.</li>';
       return;
     }
