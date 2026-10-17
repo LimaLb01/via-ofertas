@@ -163,7 +163,9 @@ if (!D) {
 
   const ofertas = D.ofertas.map(o => {
     const de = Number(o.de) || 0, por = Number(o.por) || 0, fim = ymd(o.fim);
-    return { ...o, m: o.m || "via", de, por, fim, eco: de > por ? de - por : 0, hoje: fim === D.dia,
+    // API do VIA deixa percentualdesconto zerado na maioria; de/por é a fonte confiável
+    const pct = de > por ? Math.round((de - por) / de * 1000) / 10 : Number(o.pct) || 0;
+    return { ...o, m: o.m || "via", de, por, pct, fim, eco: de > por ? de - por : 0, hoje: fim === D.dia,
              busca: norm(`${o.nome} ${(o.cats || []).join(" ")}`) };
   });
 
@@ -184,8 +186,14 @@ if (!D) {
   // API manda ~4 categorias por oferta, sem hierarquia; a mais frequente no dia é o departamento
   const freq = {};
   ofertas.forEach(o => (o.cats || []).forEach(c => freq[c] = (freq[c] || 0) + 1));
-  const FLC = "Frios, Laticínios e Congelados";
-  const NOMES = { "Flc": FLC, "Congelados": FLC, "Laticínios": FLC, "Fiambreria": FLC, "Acougue": "Açougue", "Flores": "Flores e Plantas" };
+  // nomes do VIA e do Andreazza unificados num só departamento
+  const FLC = "Açougue, Frios e Congelados", MERC = "Mercearia", HIG = "Higiene e Perfumaria";
+  const NOMES = {
+    "Flc": FLC, "Congelados": FLC, "Laticínios": FLC, "Fiambreria": FLC, "Acougue": FLC, "Açougue/Frios/Congelados": FLC,
+    "Alimentos": MERC, "Produtos De Alto Consumo": MERC, "Sobremesas E Guloseimas": MERC,
+    "Perfumaria": HIG, "Higiene E Perfumaria": HIG,
+    "Limpeza E Detetização Do Lar": "Limpeza", "Petshop": "Pet Shop", "Flores": "Flores e Plantas",
+  };
   const nDep = {};
   ofertas.forEach(o => {
     const top = (o.cats || []).reduce((a, c) => !a || freq[c] > freq[a] ? c : a, "");
@@ -256,7 +264,7 @@ if (!D) {
   $("ord").addEventListener("change", render);
   $("cat").addEventListener("change", render);
   $("merc").addEventListener("change", render);
-  $("foot").textContent = `Dados do app VIA Clube e da revista de ofertas do Andreazza (sem preço "de", exceto nas promoções Leve N), coletados ${dm(D.dia)} às ${D.hora}. Preços e estoques podem mudar na loja.`;
+  $("foot").textContent = `Dados dos apps VIA Clube e Meu Andreazza (ofertas marcadas "ative no app" só valem depois de ativadas lá), coletados ${dm(D.dia)} às ${D.hora}. Preços e estoques podem mudar na loja.`;
   render();
 }
 </script>
