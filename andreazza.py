@@ -22,7 +22,11 @@ PAGINA = "https://superandreazza.com.br/ofertas/"
 API = "https://www.meuandreazza.com.br/api/"
 # headers fixos do app (Ionic, v4.0.16); se a API passar a recusar, recapturar com o emulador
 APP_HEADERS = {"api-token": "EZAZZ1881", "api-version": "1", "app-version": "4.0.16", "min-api-level": "21",
-               "Accept": "application/json", "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"}
+               "Accept": "application/json", "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+               # Cloudflare dá 403 pro User-Agent do Python; estes são os do WebView do app
+               "User-Agent": "Mozilla/5.0 (Linux; Android 14; sdk_gphone64_x86_64 Build/UE1A.230829.036.A4; wv) "
+                             "AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/113.0.5672.136 Mobile Safari/537.36",
+               "Origin": "https://localhost", "Referer": "https://localhost/", "X-Requested-With": "com.ezoom.andreazza"}
 PRECO = re.compile(r"^(\d{1,4}),(\d{2})")
 DARK = 0x231F20
 
