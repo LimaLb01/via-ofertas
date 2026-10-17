@@ -116,10 +116,9 @@
   .lado .nm { font-size: 13px; line-height: 1.3; margin: 2px 0 0; }
   .lado .un { font: 500 12px var(--f-mono); color: var(--ink-2); }
   .tam { font: 500 13px var(--f-mono); color: var(--ink-2); }
-  .outras { margin-top: 8px; font-size: 13px; }
+  .outras { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--rule); font-size: 12px; line-height: 1.35; }
   .outras summary { cursor: pointer; color: var(--ink-2); font-size: 12px; }
   .outras ul { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
-  .outras .tag { font-size: 9.5px; padding: 2px 5px; }
   .outras .un { font: 500 11px var(--f-mono); color: var(--ink-2); }
   @media (max-width: 620px) {
     .item.grupo { grid-template-columns: 30px 1fr; }
@@ -296,8 +295,9 @@ if (!D) {
         if (!par || s < par.s) par = { v, a, s };
       }
       if (!par) return null;
-      x.outras = [...x.via, ...x.andreazza].filter(p => p !== par.v && p !== par.a)
-        .sort((a, b) => a.o.m.localeCompare(b.o.m) || (a.med ? a.o.por / a.med.q : 1e9) - (b.med ? b.o.por / b.med.q : 1e9));
+      const pu = p => p.med ? p.o.por / p.med.q : 1e9;
+      x.outras = { via: x.via.filter(p => p !== par.v).sort((a, b) => pu(a) - pu(b)),
+                   andreazza: x.andreazza.filter(p => p !== par.a).sort((a, b) => pu(a) - pu(b)) };
       x.via = par.v; x.andreazza = par.a; x.u = par.v.med.u;
       x.va = x.via.o.por / x.via.med.q; x.an = x.andreazza.o.por / x.andreazza.med.q;
       x.win = x.va < x.an ? "via" : x.an < x.va ? "andreazza" : "";
@@ -333,17 +333,22 @@ if (!D) {
         <div class="un">${brl(o.por / p.med.q)}/${x.u}</div>
         ${o.fim ? `<div class="un">${o.hoje ? "acaba hoje" : "até " + dm(o.fim)}</div>` : ""}
         ${x.win === m ? '<div class="eco">mais barato</div>' : ""}
+        ${outras(x.outras[m])}
       </div>`;
     };
     const res = x.win
       ? `<b>${MERCADOS[x.win]}</b> ${x.dif.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}% mais barato por ${x.u}`
       : "Mesmo preço nos dois";
-    const outras = x.outras.length ? `<details class="outras"><summary>Ver outras ${x.outras.length} ${x.outras.length > 1 ? "opções" : "opção"}</summary><ul>
-      ${x.outras.map(p => `<li><span class="tag m-${p.o.m}">${MERCADOS[p.o.m]}</span> ${esc(p.o.nome)} — <b>${brl(p.o.por)}</b>${p.med ? ` <span class="un">${brl(p.o.por / p.med.q)}/${p.med.u}</span>` : ""}</li>`).join("")}
-      </ul></details>` : "";
     return `<li class="item grupo"><div class="rank">${i + 1}</div><div>
       <p class="name">${esc(x.titulo)} <span class="tam">· ${x.tam}</span></p><p class="resumo">${res}</p>
-      <div class="lados">${lado("via")}${lado("andreazza")}</div>${outras}</div></li>`;
+      <div class="lados">${lado("via")}${lado("andreazza")}</div></div></li>`;
+  }
+  // outras opções do mesmo tipo naquele mercado, recolhidas
+  function outras(ps) {
+    if (!ps.length) return "";
+    return `<details class="outras"><summary>Ver outras ${ps.length} ${ps.length > 1 ? "opções" : "opção"}</summary><ul>
+      ${ps.map(p => `<li>${esc(p.o.nome)} — <b>${brl(p.o.por)}</b>${p.med ? ` <span class="un">${brl(p.o.por / p.med.q)}/${p.med.u}</span>` : ""}</li>`).join("")}
+      </ul></details>`;
   }
 
   function card(o, i) {
