@@ -127,6 +127,23 @@
     .lado .thumb { width: 44px; height: 44px; }
     .lado .topo { flex-direction: column-reverse; }
   }
+  .painel { display: grid; gap: 10px; margin-top: 16px; }
+  .painel[hidden] { display: none; }
+  .addrow { display: flex; gap: 8px; }
+  .btn { font: 600 14px var(--f-body); color: var(--paper); background: var(--ink); border: 0; border-radius: 10px; padding: 0 16px; cursor: pointer; }
+  .merc-op { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; background: var(--surface); border: 1.5px solid var(--rule); border-radius: 999px; padding: 5px 12px; cursor: pointer; }
+  .merc-op input { accent-color: var(--save); margin: 0; }
+  .nota { margin: 0; font-size: 12px; color: var(--ink-3); }
+  .placar { display: flex; flex-wrap: wrap; gap: 8px; }
+  .placar span { font: 600 13px var(--f-body); background: var(--surface); border: 1.5px solid var(--rule); border-radius: 10px; padding: 6px 12px; }
+  .placar span.win { border-color: var(--save); background: var(--save-soft); color: var(--save); }
+  .item.li { display: block; }
+  .li-topo { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .li-topo .name { margin: 0; text-transform: capitalize; }
+  .rm { background: none; border: 0; color: var(--ink-3); font-size: 22px; line-height: 1; cursor: pointer; padding: 0 4px; }
+  .rm:hover { color: var(--accent); }
+  .item.li .lados { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+  .lado.vazio { opacity: .6; }
   .empty { text-align: center; color: var(--ink-2); padding: 48px 0; }
   footer { margin-top: 36px; font-size: 12px; color: var(--ink-3); font-family: var(--f-mono); }
 </style>
@@ -150,6 +167,7 @@
       <button class="chip" data-f="hoje" aria-pressed="false">Acaba hoje</button>
       <button class="chip" data-f="nova" aria-pressed="false">Novas</button>
       <button class="chip" data-f="comparar" aria-pressed="false">Comparar mercados</button>
+      <button class="chip" data-f="lista" aria-pressed="false">Minha lista</button>
       <select id="merc" aria-label="Mercado"><option value="">Todos os mercados</option></select>
       <select id="cat" aria-label="Categoria"><option value="">Todos os departamentos</option></select>
       <select id="ord" aria-label="Ordenar">
@@ -161,6 +179,15 @@
     </div>
     <div class="count" id="count"></div>
   </div>
+
+  <section class="painel" id="painel" hidden>
+    <form class="addrow" id="add">
+      <input class="search" id="item" placeholder="Adicionar à lista (ex.: arroz, café, leite integral)" aria-label="Item da lista" autocomplete="off">
+      <button class="btn" type="submit">Adicionar</button>
+    </form>
+    <div class="row"><span class="count">Mercados que você frequenta:</span><span id="mercs" class="row"></span></div>
+    <p class="nota">Separe vários itens por vírgula. A lista fica salva só neste navegador.</p>
+  </section>
 
   <ol class="list" id="list"></ol>
   <footer id="foot"></footer>
@@ -246,7 +273,7 @@ if (!D) {
   // 1ª palavra do nome é o tipo; estas palavras separam produtos diferentes com a mesma 1ª palavra
   // (leite condensado ≠ leite integral). Comparação errada? Ajuste aqui.
   const TIPOS = {
-    leite: "condensado integral desnatado semidesnatado po coco zero", agua: "sanitaria mineral tonica coco",
+    leite: "condensado integral desnatado semidesnatado po coco zero fermentado", agua: "sanitaria mineral tonica coco",
     creme: "dental leite", oleo: "soja girassol oliva canola milho coco", cafe: "soluvel capsula",
     feijao: "preto carioca", arroz: "parboilizado integral arborio", acucar: "cristal refinado demerara mascavo",
     queijo: "mussarela prato parmesao colonial ralado brie gorgonzola provolone minas cheddar",
@@ -351,6 +378,95 @@ if (!D) {
       </ul></details>`;
   }
 
+  // ---- Minha lista: itens livres do usuário × ofertas dos mercados que ele frequenta ----
+  const LS = {
+    get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+  };
+  let itens = LS.get("lista", []);
+  let mercSel = LS.get("mercados", Object.keys(nMerc)).filter(m => nMerc[m]);
+  if (!mercSel.length) mercSel = Object.keys(nMerc);
+  $("mercs").innerHTML = Object.keys(nMerc).map(m => `<label class="merc-op"><input type="checkbox" value="${m}"${mercSel.includes(m) ? " checked" : ""}> ${MERCADOS[m] || m}</label>`).join("");
+
+  // prioridade: mesmo tipo exato ("leite" → leite, não leite condensado) > mesmo começo de tipo
+  // (não pega doce de leite) > busca por início de palavra ("coca" acha Coca Cola, não paçoca)
+  function acha(item, lista) {
+    const ws = (norm(item).match(/[a-z0-9]+/g) || []).filter(w => !PARA.has(w));
+    if (!ws.length) return [];
+    const pal = o => o._pal ||= o.busca.split(/[^a-z0-9]+/);
+    const cand = lista.filter(o => ws.every(w => pal(o).some(p => p.startsWith(w))));
+    const ti = tipo(item), cab = ti?.split(" ")[0];
+    const exato = cand.filter(o => tipo(o.nome) === ti);
+    if (exato.length) return exato;
+    const mesmo = cand.filter(o => tipo(o.nome)?.split(" ")[0] === cab);
+    return mesmo.length ? mesmo : cand;
+  }
+  // mais barato por kg/L primeiro; sem tamanho no nome depois; atacado por último
+  const custo = o => {
+    const m = medida(o.nome);
+    return ATACADO.test(norm(o.nome)) ? 1e9 : m ? o.por / m.q : 1e8 + o.por;
+  };
+
+  function celula(m, os) {
+    if (!os.length) return `<div class="lado vazio"><div class="topo"><span class="tag m-${m}">${MERCADOS[m] || m}</span></div><p class="nm">Sem oferta</p></div>`;
+    const o = os[0], med = medida(o.nome);
+    return `<div class="lado">
+      <div class="topo"><span class="tag m-${m}">${MERCADOS[m] || m}</span>
+        ${o.img ? `<img class="thumb" src="${esc(o.img)}" alt="" loading="lazy">` : ""}</div>
+      <p class="nm">${esc(o.nome)}</p>
+      <div class="por">${brl(o.por)}</div>
+      ${med ? `<div class="un">${brl(o.por / med.q)}/${med.u}</div>` : ""}
+      ${o.pct ? `<div class="eco">-${o.pct.toLocaleString("pt-BR")}%</div>` : ""}
+      ${o.fim ? `<div class="un">${o.hoje ? "acaba hoje" : "até " + dm(o.fim)}</div>` : ""}
+      ${outras(os.slice(1).map(o => ({ o, med: medida(o.nome) })))}
+    </div>`;
+  }
+
+  function renderLista() {
+    if (!mercSel.length) {
+      $("count").textContent = "";
+      $("list").innerHTML = '<li class="empty">Marque ao menos um mercado.</li>';
+      return;
+    }
+    const base = ofertas.filter(o => !o.esg && mercSel.includes(o.m));
+    const linhas = itens.map(it => {
+      const achados = acha(it, base).sort((a, b) => custo(a) - custo(b));
+      return { it, por: Object.fromEntries(mercSel.map(m => [m, achados.filter(o => o.m === m)])) };
+    });
+    // placar: quantos itens da lista cada mercado tem em oferta
+    const n = Object.fromEntries(mercSel.map(m => [m, linhas.filter(l => l.por[m].length).length]));
+    const max = Math.max(...Object.values(n));
+    const unico = Object.values(n).filter(v => v === max).length === 1;
+    $("count").innerHTML = itens.length
+      ? `<div class="placar">${mercSel.map(m => `<span class="${max && n[m] === max && unico ? "win" : ""}">${MERCADOS[m] || m}: ${n[m]} de ${itens.length} em oferta</span>`).join("")}</div>`
+      : "";
+    $("list").innerHTML = linhas.length ? linhas.map((l, i) => `<li class="item li">
+        <div class="li-topo"><p class="name">${esc(l.it)}</p><button class="rm" data-i="${i}" aria-label="Remover ${esc(l.it)}">×</button></div>
+        <div class="lados">${mercSel.map(m => celula(m, l.por[m])).join("")}</div></li>`).join("")
+      : '<li class="empty">Sua lista está vazia. Adicione itens acima.</li>';
+  }
+
+  $("add").addEventListener("submit", e => {
+    e.preventDefault();
+    const novos = $("item").value.split(",").map(s => s.trim().toLowerCase()).filter(s => s && !itens.includes(s));
+    itens = [...itens, ...novos];
+    LS.set("lista", itens);
+    $("item").value = "";
+    render();
+  });
+  $("list").addEventListener("click", e => {
+    const b = e.target.closest(".rm");
+    if (!b) return;
+    itens.splice(+b.dataset.i, 1);
+    LS.set("lista", itens);
+    render();
+  });
+  $("mercs").addEventListener("change", () => {
+    mercSel = [...$("mercs").querySelectorAll("input:checked")].map(c => c.value);
+    LS.set("mercados", mercSel);
+    render();
+  });
+
   function card(o, i) {
     const tags = [
       `<span class="tag m-${o.m}">${MERCADOS[o.m] || o.m}</span>`,
@@ -380,7 +496,10 @@ if (!D) {
     const base = ofertas
       .filter(o => !cat || o.dep === cat)
       .filter(o => !q || q.split(/\s+/).every(t => o.busca.includes(t)));
-    $("merc").disabled = $("ord").disabled = filtro === "comparar";
+    $("merc").disabled = $("ord").disabled = filtro === "comparar" || filtro === "lista";
+    $("q").hidden = $("cat").hidden = $("merc").hidden = $("ord").hidden = filtro === "lista";
+    $("painel").hidden = filtro !== "lista";
+    if (filtro === "lista") return renderLista();
     if (filtro === "comparar") {
       const gs = comparar(base);
       $("count").textContent = `${gs.length} ${gs.length === 1 ? "produto" : "produtos"} nos dois mercados`;
