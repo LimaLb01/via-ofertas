@@ -150,6 +150,14 @@
   .btn { font: 600 14px var(--f-body); color: var(--paper); background: var(--ink); border: 0; border-radius: 10px; padding: 0 16px; cursor: pointer; }
   .merc-op { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; background: var(--surface); border: 1.5px solid var(--rule); border-radius: 999px; padding: 5px 12px; cursor: pointer; }
   .merc-op input { accent-color: var(--save); margin: 0; }
+  .sug { display: grid; gap: 4px; background: var(--surface); border: 1.5px solid var(--rule); border-radius: 10px; padding: 6px; max-height: 360px; overflow-y: auto; }
+  .sug[hidden] { display: none; }
+  .sug-op { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; font: inherit; color: var(--ink); background: none; border: 0; border-radius: 8px; padding: 6px; cursor: pointer; }
+  .sug-op:hover, .sug-op:focus-visible { background: var(--surface-2); outline: none; }
+  .sug-op .thumb { width: 44px; height: 44px; flex: none; }
+  .sug-op b { display: block; font-size: 14px; }
+  .sug-op small { display: block; font-size: 12px; color: var(--ink-2); overflow-wrap: anywhere; }
+  .mini { width: 28px; height: 28px; object-fit: contain; background: #fff; border-radius: 6px; vertical-align: middle; margin-right: 8px; }
   .nota { margin: 0; font-size: 12px; color: var(--ink-3); }
   .placar { display: flex; flex-wrap: wrap; gap: 8px; }
   .placar span { font: 600 13px var(--f-body); background: var(--surface); border: 1.5px solid var(--rule); border-radius: 10px; padding: 6px 12px; }
@@ -201,11 +209,12 @@
 
   <section class="painel" id="painel" hidden>
     <form class="addrow" id="add">
-      <input class="search" id="item" placeholder="Adicionar à lista (ex.: arroz, café, leite integral)" aria-label="Item da lista" autocomplete="off">
+      <input class="search" id="item" placeholder="Digite um produto (ex.: leite, arroz, café)" aria-label="Item da lista" autocomplete="off">
       <button class="btn" type="submit">Adicionar</button>
     </form>
+    <div class="sug" id="sug" hidden></div>
     <div class="row"><span class="count">Mercados que você frequenta:</span><span id="mercs" class="row"></span></div>
-    <p class="nota">Separe vários itens por vírgula. A lista fica salva só neste navegador.</p>
+    <p class="nota">Toque numa sugestão para escolher o produto e o tamanho (qualquer marca). "Adicionar" usa o texto digitado. A lista fica salva só neste navegador.</p>
   </section>
 
   <ol class="list" id="list"></ol>
@@ -349,20 +358,23 @@ if (!D) {
       x.win = x.va < x.an ? "via" : x.an < x.va ? "andreazza" : "";
       x.dif = x.win ? (Math.max(x.va, x.an) - Math.min(x.va, x.an)) / Math.max(x.va, x.an) * 100 : 0;
       x.tam = [...new Set([fmtQ(x.via.med.q, x.u), fmtQ(x.andreazza.med.q, x.u)])].join(" e ");
-      // título = começo do nome do produto até cobrir as palavras do tipo ("Doce de leite")
-      const chave = x.t.split(" "), falta = new Set(chave), pal = [];
-      for (const p of x.via.o.nome.split(/\s+/)) {
-        pal.push(p);
-        (norm(p).match(/[a-z]+/g) || []).forEach(w => falta.delete(SINON[w] || w));
-        if (!falta.size) break;
-      }
-      const orig = {};
-      x.via.o.nome.split(/[^\p{L}]+/u).forEach(p => orig[norm(p)] = p);
-      const tit = pal.length <= chave.length + 1 ? pal.join(" ").replace(/[^\p{L}\d]+$/u, "")
-        : chave.map(w => orig[w] || w).join(" ");
-      x.titulo = tit[0].toUpperCase() + tit.slice(1).toLowerCase();
+      x.titulo = tituloDe(x.via.o.nome, x.t);
       return x;
     }).filter(Boolean).sort((a, b) => b.dif - a.dif);
+  }
+  // título = começo do nome do produto até cobrir as palavras do tipo ("Doce de leite")
+  function tituloDe(nome, t) {
+    const chave = t.split(" "), falta = new Set(chave), pal = [];
+    for (const p of nome.split(/\s+/)) {
+      pal.push(p);
+      (norm(p).match(/[a-z]+/g) || []).forEach(w => falta.delete(SINON[w] || w));
+      if (!falta.size) break;
+    }
+    const orig = {};
+    nome.split(/[^\p{L}]+/u).forEach(p => orig[norm(p)] = p);
+    const tit = pal.length <= chave.length + 1 ? pal.join(" ").replace(/[^\p{L}\d]+$/u, "")
+      : chave.map(w => orig[w] || w).join(" ");
+    return tit[0].toUpperCase() + tit.slice(1).toLowerCase();
   }
   const nGrupos = comparar(ofertas).length;
   document.querySelector('[data-f="comparar"]').insertAdjacentHTML("beforeend", `<span class="c">${nGrupos}</span>`);
@@ -420,6 +432,68 @@ if (!D) {
     const mesmo = cand.filter(o => tipo(o.nome)?.split(" ")[0] === cab);
     return mesmo.length ? mesmo : cand;
   }
+  // item escolhido nas sugestões: mesmo tipo e tamanho parecido (até 1,5×), qualquer marca;
+  // palavras digitadas fora do tipo ("coca" em refrigerante) continuam obrigatórias
+  function casa(it, lista) {
+    return lista.filter(o => {
+      if (tipo(o.nome) !== it.t) return false;
+      const pal = o._pal ||= o.busca.split(/[^a-z0-9]+/);
+      if (!(it.w || []).every(w => pal.some(p => p.startsWith(w)))) return false;
+      if (!it.u) return true;
+      const m = medida(o.nome);
+      return m && m.u === it.u && Math.max(m.q, it.q) / Math.min(m.q, it.q) <= 1.5;
+    });
+  }
+  const chaveItem = it => typeof it === "string" ? it : `${it.t}|${(it.w || []).join(" ")}|${it.q}|${it.u}`;
+  const nomeItem = it => typeof it === "string" ? it : it.label;
+
+  // sugestões ao digitar: agrupa por tipo + tamanho ("Leite · 1L"), mostra o mais barato como exemplo
+  let sugAtual = [];
+  function sugestoes(txt) {
+    const ws = (norm(txt).match(/[a-z0-9]+/g) || []).filter(w => !PARA.has(w));
+    if (!ws.length || norm(txt).trim().length < 2) return [];
+    const g = {};
+    ofertas.forEach(o => {
+      if (o.esg) return;
+      const pal = o._pal ||= o.busca.split(/[^a-z0-9]+/);
+      if (!ws.every(w => pal.some(p => p.startsWith(w)))) return;
+      const t = tipo(o.nome);
+      if (!t) return;
+      const med = medida(o.nome), tw = t.split(" ");
+      const w = ws.filter(x => !tw.some(k => k.startsWith(SINON[x] || x)));
+      (g[`${t}|${w.join(" ")}|${med ? fmtQ(med.q, med.u) : ""}`] ||= { t, w, med, os: [] }).os.push(o);
+    });
+    const ti = tipo(txt), cab = SINON[ws[0]] || ws[0];
+    return Object.values(g)
+      .sort((a, b) => (b.t === ti) - (a.t === ti) || b.t.startsWith(cab) - a.t.startsWith(cab) || b.os.length - a.os.length)
+      .slice(0, 10)
+      .map(s => {
+        s.os.sort((a, b) => a.por - b.por);
+        s.label = tituloDe(s.os[0].nome, s.t) + (s.w.length ? " " + s.w.join(" ") : "") + (s.med ? ` · ${fmtQ(s.med.q, s.med.u)}` : "");
+        return s;
+      });
+  }
+  function renderSug() {
+    sugAtual = sugestoes($("item").value);
+    $("sug").innerHTML = sugAtual.map((s, i) => {
+      const o = s.os[0];
+      return `<button type="button" class="sug-op" data-i="${i}">
+        ${o.img ? `<img class="thumb" src="${esc(o.img)}" alt="" loading="lazy">` : '<span class="thumb"></span>'}
+        <span><b>${esc(s.label)}</b>
+        <small>ex.: ${esc(o.nome)} · ${brl(o.por)} no ${MERCADOS[o.m] || o.m}${s.os.length > 1 ? ` · ${s.os.length} opções` : ""}</small></span>
+      </button>`;
+    }).join("");
+    $("sug").hidden = !sugAtual.length;
+  }
+  function addItens(novos) {
+    const tem = new Set(itens.map(chaveItem));
+    itens = [...itens, ...novos.filter(it => !tem.has(chaveItem(it)))];
+    LS.set("lista", itens);
+    $("item").value = "";
+    renderSug();
+    render();
+  }
+
   // mais barato por kg/L primeiro; sem tamanho no nome depois; atacado por último
   const custo = o => {
     const m = medida(o.nome);
@@ -449,7 +523,7 @@ if (!D) {
     }
     const base = ofertas.filter(o => !o.esg && mercSel.includes(o.m));
     const linhas = itens.map(it => {
-      const achados = acha(it, base).sort((a, b) => custo(a) - custo(b));
+      const achados = (typeof it === "string" ? acha(it, base) : casa(it, base)).sort((a, b) => custo(a) - custo(b));
       return { it, por: Object.fromEntries(mercSel.map(m => [m, achados.filter(o => o.m === m)])) };
     });
     // placar: quantos itens da lista cada mercado tem em oferta
@@ -460,18 +534,22 @@ if (!D) {
       ? `<div class="placar">${mercSel.map(m => `<span class="${max && n[m] === max && unico ? "win" : ""}">${MERCADOS[m] || m}: ${n[m]} de ${itens.length} em oferta</span>`).join("")}</div>`
       : "";
     $("list").innerHTML = linhas.length ? linhas.map((l, i) => `<li class="item li">
-        <div class="li-topo"><p class="name">${esc(l.it)}</p><button class="rm" data-i="${i}" aria-label="Remover ${esc(l.it)}">×</button></div>
+        <div class="li-topo"><p class="name">${l.it.img ? `<img class="mini" src="${esc(l.it.img)}" alt="">` : ""}${esc(nomeItem(l.it))}</p><button class="rm" data-i="${i}" aria-label="Remover ${esc(nomeItem(l.it))}">×</button></div>
         <div class="lados">${mercSel.map(m => celula(m, l.por[m])).join("")}</div></li>`).join("")
       : '<li class="empty">Sua lista está vazia. Adicione itens acima.</li>';
   }
 
   $("add").addEventListener("submit", e => {
     e.preventDefault();
-    const novos = $("item").value.split(",").map(s => s.trim().toLowerCase()).filter(s => s && !itens.includes(s));
-    itens = [...itens, ...novos];
-    LS.set("lista", itens);
-    $("item").value = "";
-    render();
+    addItens($("item").value.split(",").map(s => s.trim().toLowerCase()).filter(Boolean));
+  });
+  $("item").addEventListener("input", renderSug);
+  $("sug").addEventListener("click", e => {
+    const b = e.target.closest(".sug-op");
+    if (!b) return;
+    const s = sugAtual[+b.dataset.i];
+    addItens([{ t: s.t, w: s.w, q: s.med?.q ?? null, u: s.med?.u ?? "", label: s.label, img: s.os[0].img || "" }]);
+    $("item").focus();
   });
   $("list").addEventListener("click", e => {
     const b = e.target.closest(".rm");
