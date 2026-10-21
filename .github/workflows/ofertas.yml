@@ -34,6 +34,7 @@ jobs:
           VIA_LOJA: "8"
           ANDREAZZA_LOGIN: ${{ secrets.ANDREAZZA_LOGIN }}
           ANDREAZZA_SENHA: ${{ secrets.ANDREAZZA_SENHA }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: python coletar.py
       - name: Salvar histórico
         run: |

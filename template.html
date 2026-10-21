@@ -164,11 +164,15 @@
   .placar span.win { border-color: var(--save); background: var(--save-soft); color: var(--save); }
   .item.li { display: block; }
   .li-topo { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
-  .li-topo .name { margin: 0; text-transform: capitalize; }
+  .li-topo .name { margin: 0; }
+  .li-topo .name::first-letter { text-transform: uppercase; }
   .rm { background: none; border: 0; color: var(--ink-3); font-size: 22px; line-height: 1; cursor: pointer; padding: 0 4px; }
   .rm:hover { color: var(--accent); }
   .item.li .lados { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
   .lado.vazio { opacity: .6; }
+  .lado .sem { color: var(--ink-3); }
+  .alt { display: grid; gap: 4px; margin-top: 4px; padding: 8px; border: 1.5px dashed var(--new); border-radius: 8px; background: var(--new-soft); }
+  .tag.sug { justify-self: start; background: var(--new); color: var(--paper); }
   .empty { text-align: center; color: var(--ink-2); padding: 48px 0; }
   footer { margin-top: 36px; font-size: 12px; color: var(--ink-3); font-family: var(--f-mono); }
 </style>
@@ -330,14 +334,21 @@ if (!D) {
     const q = n * v * (u === "g" || u === "ml" ? .001 : 1);
     return q ? { q, u: u.endsWith("g") ? "kg" : "L" } : null;
   }
+  // ficha da IA (ia.py, Gemini) quando a oferta tem; sem ela, as regras acima pelo nome
+  const tipoO = o => o.ia ? norm(`${o.ia.p} ${o.ia.v}`).replace(/[^a-z0-9]+/g, " ").trim() : tipo(o.nome);
+  const medO = o => o.ia?.q ? { q: o.ia.q, u: o.ia.u } : medida(o.nome);
+  const semPara = s => (norm(s).match(/[a-z0-9]+/g) || []).filter(w => !PARA.has(w)).join(" ");
+  const prodO = o => o.ia ? semPara(o.ia.p) : tipo(o.nome)?.split(" ")[0];
+  const cap = s => s[0].toUpperCase() + s.slice(1);
+  const rotulo = (o, t) => o.ia ? cap(`${o.ia.p}${o.ia.v ? " " + o.ia.v : ""}`) : tituloDe(o.nome, t);
   const ATACADO = /\b(galao|balde|fardo|bombona|profissional|food service)\b/;
   const fmtQ = (q, u) => q < 1 ? `${Math.round(q * 1000)}${u === "kg" ? "g" : "ml"}`
     : `${+q.toFixed(2)}${u}`.replace(".", ",");
   function comparar(lista) {
     const g = {};
     lista.forEach(o => {
-      const t = !o.esg && tipo(o.nome);
-      if (t) (g[t] ||= { t, via: [], andreazza: [] })[o.m]?.push({ o, med: medida(o.nome) });
+      const t = !o.esg && tipoO(o);
+      if (t) (g[t] ||= { t, via: [], andreazza: [] })[o.m]?.push({ o, med: medO(o) });
     });
     return Object.values(g).map(x => {
       // compara só embalagens de tamanho parecido (até 1,5×), que é a compra real; atacado fica de fora.
@@ -358,7 +369,7 @@ if (!D) {
       x.win = x.va < x.an ? "via" : x.an < x.va ? "andreazza" : "";
       x.dif = x.win ? (Math.max(x.va, x.an) - Math.min(x.va, x.an)) / Math.max(x.va, x.an) * 100 : 0;
       x.tam = [...new Set([fmtQ(x.via.med.q, x.u), fmtQ(x.andreazza.med.q, x.u)])].join(" e ");
-      x.titulo = tituloDe(x.via.o.nome, x.t);
+      x.titulo = rotulo(x.via.o, x.t);
       return x;
     }).filter(Boolean).sort((a, b) => b.dif - a.dif);
   }
@@ -426,21 +437,29 @@ if (!D) {
     if (!ws.length) return [];
     const pal = o => o._pal ||= o.busca.split(/[^a-z0-9]+/);
     const cand = lista.filter(o => ws.every(w => pal(o).some(p => p.startsWith(w))));
+    const peloIA = cand.filter(o => o.ia && prodO(o) === ws.join(" "));  // "leite" = item "leite" da IA
+    if (peloIA.length) return peloIA;
     const ti = tipo(item), cab = ti?.split(" ")[0];
-    const exato = cand.filter(o => tipo(o.nome) === ti);
+    const exato = cand.filter(o => tipoO(o) === ti);
     if (exato.length) return exato;
-    const mesmo = cand.filter(o => tipo(o.nome)?.split(" ")[0] === cab);
+    const mesmo = cand.filter(o => tipoO(o)?.split(" ")[0] === cab);
     return mesmo.length ? mesmo : cand;
+  }
+  // item da lista → produto da IA ("café 500g" → "cafe"), para sugerir alternativa quando falta
+  function produtoDo(it, base) {
+    if (typeof it !== "string") return it.p || it.t.split(" ")[0];
+    const o = acha(it, base)[0];
+    return o ? prodO(o) : semPara(it.replace(/\d+([.,]\d+)?\s*(kg|g|ml|l)\b/gi, ""));
   }
   // item escolhido nas sugestões: mesmo tipo e tamanho parecido (até 1,5×), qualquer marca;
   // palavras digitadas fora do tipo ("coca" em refrigerante) continuam obrigatórias
   function casa(it, lista) {
     return lista.filter(o => {
-      if (tipo(o.nome) !== it.t) return false;
+      if (tipoO(o) !== it.t && tipo(o.nome) !== it.t) return false;
       const pal = o._pal ||= o.busca.split(/[^a-z0-9]+/);
       if (!(it.w || []).every(w => pal.some(p => p.startsWith(w)))) return false;
       if (!it.u) return true;
-      const m = medida(o.nome);
+      const m = medO(o);
       return m && m.u === it.u && Math.max(m.q, it.q) / Math.min(m.q, it.q) <= 1.5;
     });
   }
@@ -457,9 +476,9 @@ if (!D) {
       if (o.esg) return;
       const pal = o._pal ||= o.busca.split(/[^a-z0-9]+/);
       if (!ws.every(w => pal.some(p => p.startsWith(w)))) return;
-      const t = tipo(o.nome);
+      const t = tipoO(o);
       if (!t) return;
-      const med = medida(o.nome), tw = t.split(" ");
+      const med = medO(o), tw = t.split(" ");
       const w = ws.filter(x => !tw.some(k => k.startsWith(SINON[x] || x)));
       (g[`${t}|${w.join(" ")}|${med ? fmtQ(med.q, med.u) : ""}`] ||= { t, w, med, os: [] }).os.push(o);
     });
@@ -469,7 +488,7 @@ if (!D) {
       .slice(0, 10)
       .map(s => {
         s.os.sort((a, b) => a.por - b.por);
-        s.label = tituloDe(s.os[0].nome, s.t) + (s.w.length ? " " + s.w.join(" ") : "") + (s.med ? ` · ${fmtQ(s.med.q, s.med.u)}` : "");
+        s.label = rotulo(s.os[0], s.t) + (s.w.length ? " " + s.w.join(" ") : "") + (s.med ? ` · ${fmtQ(s.med.q, s.med.u)}` : "");
         return s;
       });
   }
@@ -496,13 +515,26 @@ if (!D) {
 
   // mais barato por kg/L primeiro; sem tamanho no nome depois; atacado por último
   const custo = o => {
-    const m = medida(o.nome);
+    const m = medO(o);
     return ATACADO.test(norm(o.nome)) ? 1e9 : m ? o.por / m.q : 1e8 + o.por;
   };
 
-  function celula(m, os) {
-    if (!os.length) return `<div class="lado vazio"><div class="topo"><span class="tag m-${m}">${MERCADOS[m] || m}</span></div><p class="nm">Sem oferta</p></div>`;
-    const o = os[0], med = medida(o.nome);
+  function celula(m, os, alt) {
+    if (!os.length) {
+      const tag = `<div class="topo"><span class="tag m-${m}">${MERCADOS[m] || m}</span></div>`;
+      if (!alt) return `<div class="lado vazio">${tag}<p class="nm">Sem oferta</p></div>`;
+      const am = medO(alt);
+      // não tem o que a pessoa pediu, mas tem o mesmo item em outra versão (ex.: café solúvel no lugar do em pó)
+      return `<div class="lado">${tag}<p class="nm sem">Sem oferta desse</p>
+        <div class="alt"><span class="tag sug">💡 alternativa</span>
+          ${alt.img ? `<img class="thumb" src="${esc(alt.img)}" alt="" loading="lazy">` : ""}
+          <p class="nm">${esc(alt.nome)}</p>
+          <div class="por">${brl(alt.por)}</div>
+          ${am ? `<div class="un">${brl(alt.por / am.q)}/${am.u}</div>` : ""}
+          ${alt.fim ? `<div class="un">${alt.hoje ? "acaba hoje" : "até " + dm(alt.fim)}</div>` : ""}
+        </div></div>`;
+    }
+    const o = os[0], med = medO(o);
     return `<div class="lado">
       <div class="topo"><span class="tag m-${m}">${MERCADOS[m] || m}</span>
         ${o.img ? `<img class="thumb" src="${esc(o.img)}" alt="" loading="lazy">` : ""}</div>
@@ -511,7 +543,7 @@ if (!D) {
       ${med ? `<div class="un">${brl(o.por / med.q)}/${med.u}</div>` : ""}
       ${o.pct ? `<div class="eco">-${o.pct.toLocaleString("pt-BR")}%</div>` : ""}
       ${o.fim ? `<div class="un">${o.hoje ? "acaba hoje" : "até " + dm(o.fim)}</div>` : ""}
-      ${outras(os.slice(1).map(o => ({ o, med: medida(o.nome) })))}
+      ${outras(os.slice(1).map(o => ({ o, med: medO(o) })))}
     </div>`;
   }
 
@@ -524,7 +556,11 @@ if (!D) {
     const base = ofertas.filter(o => !o.esg && mercSel.includes(o.m));
     const linhas = itens.map(it => {
       const achados = (typeof it === "string" ? acha(it, base) : casa(it, base)).sort((a, b) => custo(a) - custo(b));
-      return { it, por: Object.fromEntries(mercSel.map(m => [m, achados.filter(o => o.m === m)])) };
+      const p = produtoDo(it, base);
+      // mercado sem o item: oferece o mais barato do mesmo produto (fichas da IA) como alternativa
+      const alt = m => base.filter(o => o.m === m && o.ia && prodO(o) === p && !ATACADO.test(norm(o.nome)))
+        .sort((a, b) => custo(a) - custo(b))[0];
+      return { it, por: Object.fromEntries(mercSel.map(m => [m, achados.filter(o => o.m === m)])), alt };
     });
     // placar: quantos itens da lista cada mercado tem em oferta
     const n = Object.fromEntries(mercSel.map(m => [m, linhas.filter(l => l.por[m].length).length]));
@@ -535,7 +571,7 @@ if (!D) {
       : "";
     $("list").innerHTML = linhas.length ? linhas.map((l, i) => `<li class="item li">
         <div class="li-topo"><p class="name">${l.it.img ? `<img class="mini" src="${esc(l.it.img)}" alt="">` : ""}${esc(nomeItem(l.it))}</p><button class="rm" data-i="${i}" aria-label="Remover ${esc(nomeItem(l.it))}">×</button></div>
-        <div class="lados">${mercSel.map(m => celula(m, l.por[m])).join("")}</div></li>`).join("")
+        <div class="lados">${mercSel.map(m => celula(m, l.por[m], !l.por[m].length && l.alt(m))).join("")}</div></li>`).join("")
       : '<li class="empty">Sua lista está vazia. Adicione itens acima.</li>';
   }
 
@@ -548,7 +584,7 @@ if (!D) {
     const b = e.target.closest(".sug-op");
     if (!b) return;
     const s = sugAtual[+b.dataset.i];
-    addItens([{ t: s.t, w: s.w, q: s.med?.q ?? null, u: s.med?.u ?? "", label: s.label, img: s.os[0].img || "" }]);
+    addItens([{ t: s.t, p: prodO(s.os[0]), w: s.w, q: s.med?.q ?? null, u: s.med?.u ?? "", label: s.label, img: s.os[0].img || "" }]);
     $("item").focus();
   });
   $("list").addEventListener("click", e => {

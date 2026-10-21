@@ -3,6 +3,7 @@
 Credenciais via variáveis de ambiente (segredos do GitHub):
   VIA_LOGIN (CPF), VIA_SENHA, VIA_XAPIKEY, VIA_LOJA (padrão 8 = VIA CAXIAS)
   ANDREAZZA_LOGIN (CPF), ANDREAZZA_SENHA (sem eles, Andreazza usa só a revista PDF)
+  GEMINI_API_KEY (opcional: fichas de produto pela IA, ver ia.py)
 """
 import json
 import os
@@ -12,6 +13,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import andreazza
+import ia
 
 ROOT = Path(__file__).parent
 DATA = ROOT / "data"
@@ -95,6 +97,7 @@ def main():
     anteriores = sorted(p for p in DATA.glob("*.json") if p.stem < dia)
     ontem = json.loads(anteriores[-1].read_text(encoding="utf-8")) if anteriores else []
     marcar(ofertas, ontem)
+    n_ia = fonte("IA", lambda: ia.enriquecer(ofertas, DATA / "ia.json"))
     (DATA / f"{dia}.json").write_text(json.dumps(ofertas, ensure_ascii=False), encoding="utf-8")
 
     payload = {"dia": dia, "hora": agora.strftime("%H:%M"), "temOntem": bool(ontem), "ofertas": ofertas}
@@ -105,7 +108,8 @@ def main():
     if tpl.exists() and "/*__DATA__*/null" in (t := tpl.read_text(encoding="utf-8")):
         blob = json.dumps(payload, ensure_ascii=False).replace("</", "<\\/")
         (SITE / "index.html").write_text(t.replace("/*__DATA__*/null", blob), encoding="utf-8")
-    print(f"{dia}: {len(via or [])} VIA + {len(andr or [])} Andreazza, {sum(o['st'] == 'nova' for o in ofertas)} novas")
+    print(f"{dia}: {len(via or [])} VIA + {len(andr or [])} Andreazza, {sum(o['st'] == 'nova' for o in ofertas)} novas, "
+          f"IA: {n_ia or 0} fichas novas, {sum('ia' in o for o in ofertas)} ofertas com ficha")
 
 
 if __name__ == "__main__":
